@@ -47,7 +47,7 @@ public class Assembulator implements Assembler{
 	}
 	
 	private void loadFile(String filename) {
-		File file = new File(filename);		
+		File file = new File(filename);
 		
 		Scanner codeScan;
 		try {
@@ -73,8 +73,7 @@ public class Assembulator implements Assembler{
 		Predicate<String> EmptyAndCommentOnlyLines = s -> {
 			// Ignore comments and then split by comma/spaces
 			String[] split = s.split("\\#")[0].split("[,\\s]+");
-			boolean atLeastOneCommand = split.length > 0 && !split[0].isEmpty();
-			return atLeastOneCommand;
+			return split.length > 0 && !split[0].isEmpty();
 		};
 
 		Function<String, String> addNopToEmptyTargetLines = s -> {
@@ -85,8 +84,12 @@ public class Assembulator implements Assembler{
 			}
 			return s + " nop";
 		};
+
+		//Allow many semicolon delimited statements in one line
+		Function<String,String> splitBySemicolon = s -> s.replaceAll(";+", "\n");
 		
 		List<String> filteredCode = rawAssembly.stream().map(addNopToEmptyTargetLines)
+                                                        .map(splitBySemicolon)
 														.filter(EmptyAndCommentOnlyLines)
 														.collect(Collectors.toList());
 
