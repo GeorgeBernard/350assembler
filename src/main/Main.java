@@ -19,16 +19,25 @@ public final class Main {
 		
 		if (args.length == 0) {
 			Scanner read = new Scanner(System.in);
-			System.out.print("Please type the filename: ");
-			filename = read.nextLine();
+			do {
+                System.out.print("Please type the filename: ");
+                filename = read.nextLine();
+            }while(filename == null);
 			read.close();
 		} else {
 			filename = args[0];
 		}
 		
 		try {
-			String output = "C:\\Users\\George Bernard\\Desktop\\350\\final-project-casino\\labskeleton\\imem.mif";
-			FileOutputStream fos = new FileOutputStream(new File(output));
+            String outName;
+            String cwd = System.getProperty("user.dir");
+            if(args.length == 2){
+                outName = args[1].substring(0, args[1].lastIndexOf('.')) + ".mif";
+            } else {
+                outName = "imem.mif";
+            }
+            String output = String.join(File.separator, cwd, outName);
+            FileOutputStream fos = new FileOutputStream(new File(output));
 			Assembler a = new Assembulator(filename);
 			a.writeTo(fos);
 			a.writeTo(System.out);
