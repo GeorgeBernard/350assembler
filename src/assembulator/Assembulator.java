@@ -53,7 +53,7 @@ public class Assembulator implements Assembler{
 		try {
 			codeScan = new Scanner(file);
 			while (codeScan.hasNextLine()) {
-				_RawAssembly.add(codeScan.nextLine());
+				_RawAssembly.addAll(Arrays.asList(codeScan.nextLine().split(";+")));
 			}
 			codeScan.close();
 		} catch (FileNotFoundException e) {
@@ -84,12 +84,8 @@ public class Assembulator implements Assembler{
 			}
 			return s + " nop";
 		};
-
-		//Allow many semicolon delimited statements in one line
-		Function<String,String> splitBySemicolon = s -> s.replaceAll(";+", "\n");
 		
 		List<String> filteredCode = rawAssembly.stream().map(addNopToEmptyTargetLines)
-                                                        .map(splitBySemicolon)
 														.filter(EmptyAndCommentOnlyLines)
 														.collect(Collectors.toList());
 
