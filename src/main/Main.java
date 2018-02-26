@@ -16,13 +16,14 @@ import assembulator.Assembulator;
 public final class Main {
 	public static void main(String[] args) {
 		String filename;
-		
+		String extension;
 		if (args.length == 0) {
 			Scanner read = new Scanner(System.in);
 			do {
                 System.out.print("Please type the filename: ");
                 filename = read.nextLine();
-            }while(filename == null);
+                extension = filename.substring(filename.lastIndexOf('.'));
+            }while(!filename.isEmpty() || !extension.equals(".mips"));
 			read.close();
 		} else {
 			filename = args[0];
