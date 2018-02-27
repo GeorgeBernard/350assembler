@@ -23,13 +23,14 @@ public final class Main {
                 System.out.print("Please type the filename: ");
                 filename = read.nextLine();
                 extension = filename.substring(filename.lastIndexOf('.'));
-            }while(!filename.isEmpty() || !extension.equals(".mips"));
-			read.close();
+            }while(filename.isEmpty() || !extension.equals(".s"));
+            filename = String.join(File.separator, System.getProperty("user.dir"), "..", "resources", filename);
+            read.close();
 		} else {
-			filename = args[0];
+			filename = String.join(File.separator, System.getProperty("user.dir"), "..", "resources", args[0]);
+			System.out.println(filename);
 		}
-		
-		try {
+        try {
             String outName;
             String cwd = System.getProperty("user.dir");
             if(args.length == 2){

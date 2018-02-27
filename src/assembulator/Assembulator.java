@@ -47,9 +47,9 @@ public class Assembulator implements Assembler{
 	}
 	
 	private void loadFile(String filename) {
-		File file = new File(filename);
-		
-		Scanner codeScan;
+        File file = new File(filename);
+        System.out.println(file.getPath());
+        Scanner codeScan;
 		try {
 			codeScan = new Scanner(file);
 			while (codeScan.hasNextLine()) {
