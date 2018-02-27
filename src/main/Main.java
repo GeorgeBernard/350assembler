@@ -16,19 +16,30 @@ import assembulator.Assembulator;
 public final class Main {
 	public static void main(String[] args) {
 		String filename;
-		
+		String extension;
 		if (args.length == 0) {
 			Scanner read = new Scanner(System.in);
-			System.out.print("Please type the filename: ");
-			filename = read.nextLine();
-			read.close();
+			do {
+                System.out.print("Please type the filename: ");
+                filename = read.nextLine();
+                extension = filename.substring(filename.lastIndexOf('.'));
+            }while(filename.isEmpty() || !extension.equals(".s"));
+            filename = String.join(File.separator, System.getProperty("user.dir"), "..", "resources", filename);
+            read.close();
 		} else {
-			filename = args[0];
+			filename = String.join(File.separator, System.getProperty("user.dir"), "..", "resources", args[0]);
+			System.out.println(filename);
 		}
-		
-		try {
-			String output = "C:\\Users\\George Bernard\\Desktop\\350\\final-project-casino\\labskeleton\\imem.mif";
-			FileOutputStream fos = new FileOutputStream(new File(output));
+        try {
+            String outName;
+            String cwd = System.getProperty("user.dir");
+            if(args.length == 2){
+                outName = args[1].substring(0, args[1].lastIndexOf('.')) + ".mif";
+            } else {
+                outName = "imem.mif";
+            }
+            String output = String.join(File.separator, cwd, outName);
+            FileOutputStream fos = new FileOutputStream(new File(output));
 			Assembler a = new Assembulator(filename);
 			a.writeTo(fos);
 			a.writeTo(System.out);

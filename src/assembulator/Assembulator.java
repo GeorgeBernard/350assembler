@@ -47,13 +47,13 @@ public class Assembulator implements Assembler{
 	}
 	
 	private void loadFile(String filename) {
-		File file = new File(filename);		
-		
-		Scanner codeScan;
+        File file = new File(filename);
+        System.out.println(file.getPath());
+        Scanner codeScan;
 		try {
 			codeScan = new Scanner(file);
 			while (codeScan.hasNextLine()) {
-				_RawAssembly.add(codeScan.nextLine());
+				_RawAssembly.addAll(Arrays.asList(codeScan.nextLine().split(";+")));
 			}
 			codeScan.close();
 		} catch (FileNotFoundException e) {
@@ -73,8 +73,7 @@ public class Assembulator implements Assembler{
 		Predicate<String> EmptyAndCommentOnlyLines = s -> {
 			// Ignore comments and then split by comma/spaces
 			String[] split = s.split("\\#")[0].split("[,\\s]+");
-			boolean atLeastOneCommand = split.length > 0 && !split[0].isEmpty();
-			return atLeastOneCommand;
+			return split.length > 0 && !split[0].isEmpty();
 		};
 
 		Function<String, String> addNopToEmptyTargetLines = s -> {
