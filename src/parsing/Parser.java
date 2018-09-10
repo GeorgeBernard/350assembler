@@ -1,13 +1,14 @@
 package parsing;
 
 
+import instructions.BadInstructionException;
 import instructions.Instruction;
 
 public class Parser {
 
 	private static final int MAX_SHAMT = (1 << 5) -1 ;
 	
-	public static String parseLine(String line) {
+	public static String parseLine(String line) throws BadInstructionException {
 		
 		// Ignore comments
 		line = line.split("\\#")[0];
@@ -29,16 +30,18 @@ public class Parser {
 		case JII: 	return parseJIIType(split_line, instr);
 		case L:		return parseLType(split_line, instr);
 		case NOOP: 	return toBinary(0, 32);
-		default: 	return "";
+		default: 	throw new BadInstructionException(String.format("Unrecognized instruction type: %s\n", split_line[0]));
 		}
 		
 	}
 	
 	
-	static String parseLType(String[] splitLine, Instruction instr) {
+	static String parseLType(String[] splitLine, Instruction instr) throws BadInstructionException{
 		if(instr == Instruction.WLI) {
 			if (splitLine.length != 2) {
-				return "BAD L: " + instr.name();
+			    String message = String.format(BadInstructionException.MSG_TEMPLATE, "L",
+                        getOriginalInstruction(splitLine), String.format(BadInstructionException.ARG_MSG, 2, splitLine.length-1));
+			    throw new BadInstructionException(message);
 			}
 			
 			String opcode = instr.getOpcode();
@@ -51,7 +54,8 @@ public class Parser {
 					char ch = splitLine[1].charAt(0);
 					ascii = ch;
 				} else {
-					return "BAD L: ascii " + nfe.getClass().getName();
+				    throw new BadInstructionException(String.join(BadInstructionException.MSG_TEMPLATE, "L",
+                            getOriginalInstruction(splitLine), String.format("Tried to parse %s to ASCII", nfe.getClass().getName())));
 				}
 			}
 			
@@ -61,30 +65,46 @@ public class Parser {
 		}
 
 		if (instr == Instruction.WP) {
-			return instr.getOpcode() + toBinary(parseRegister(splitLine[1]), 5) + toBinary(0, 22);
+		    try {
+                return instr.getOpcode() + toBinary(parseRegister(splitLine[1]), 5) + toBinary(0, 22);
+            } catch (IllegalArgumentException e){
+                String message = String.format(BadInstructionException.MSG_TEMPLATE, "L", getOriginalInstruction(splitLine),
+                        e.getMessage());
+                throw new BadInstructionException(message);
+            }
 		}
-		
-		return "BAD L: Not Supported";
+
+		String message = String.format(BadInstructionException.MSG_TEMPLATE, "L", getOriginalInstruction(splitLine),
+                "Unsupported operation");
+		throw new BadInstructionException(message);
 	}
 	
-	static String parseJIIType(String[] splitLine, Instruction instr) {
+	static String parseJIIType(String[] splitLine, Instruction instr) throws BadInstructionException {
 		if (splitLine.length != 2) {
-			return "BAD JII";
+			String message = String.format(BadInstructionException.MSG_TEMPLATE, "JII", getOriginalInstruction(splitLine),
+                    String.format(BadInstructionException.ARG_MSG, 2, splitLine.length-1));
+			throw new BadInstructionException(message);
 		}
 		
 		String opcode = instr.getOpcode();
 		
 		String rd = splitLine[1];
-		String rdCode = toBinary(parseRegister(rd), 5);
-		
-		return opcode + rdCode + toBinary(0, 22);
+		try {
+            String rdCode = toBinary(parseRegister(rd), 5);
+            return opcode + rdCode + toBinary(0, 22);
+        } catch(IllegalArgumentException e){
+		    String message = String.format(BadInstructionException.MSG_TEMPLATE, "JII", getOriginalInstruction(splitLine),
+                    e.getMessage());
+		    throw new BadInstructionException(message);
+        }
 	}
 	
-	static String parseJIType(String[] splitLine, Instruction instr) {
+	static String parseJIType(String[] splitLine, Instruction instr) throws BadInstructionException {
 		String opcode = instr.getOpcode();
 		
 		if (splitLine.length != 2) {
-			return "BAD JI";
+            String message = String.format(BadInstructionException.MSG_TEMPLATE, "JI", getOriginalInstruction(splitLine),
+                    String.format(BadInstructionException.ARG_MSG, 2, splitLine.length-1));
 		}
 		
 		String target = splitLine[1];
@@ -99,7 +119,7 @@ public class Parser {
 		return opcode + T;
 	}
 	
-	static String parseIType(String[] splitLine, Instruction instr) {
+	static String parseIType(String[] splitLine, Instruction instr) throws BadInstructionException{
 		
 		boolean memInstr = 
 				   instr == Instruction.LW 
@@ -107,10 +127,17 @@ public class Parser {
 				|| instr == Instruction.SV
 				|| instr == Instruction.LP;
 
-		if (memInstr && splitLine.length != 3 
-		|| !memInstr && splitLine.length != 4) {
-			return "BAD I";
+		if (memInstr && splitLine.length != 3) {
+		    String message = String.format(BadInstructionException.MSG_TEMPLATE, "I", getOriginalInstruction(splitLine),
+                    String.format(BadInstructionException.ARG_MSG, 3, splitLine.length-1));
+		    throw new BadInstructionException(message);
 		}
+
+		if(!memInstr && splitLine.length != 4){
+            String message = String.format(BadInstructionException.MSG_TEMPLATE, "I", getOriginalInstruction(splitLine),
+                    String.format(BadInstructionException.ARG_MSG, 4, splitLine.length-1));
+            throw new BadInstructionException(message);
+        }
 		
 		String arg2;
 		String rd, rs, N;
@@ -127,24 +154,33 @@ public class Parser {
 		}
 		
 		String opcode = instr.getOpcode();
-		String rsCode = toBinary(parseRegister(rs), 5);
-		String rdCode = toBinary(parseRegister(rd), 5);
-		String immediate = parseImmediate(N);
+		try {
+            String rsCode = toBinary(parseRegister(rs), 5);
+            String rdCode = toBinary(parseRegister(rd), 5);
+            String immediate = parseImmediate(N);
+            return opcode + rdCode + rsCode + immediate;
+        } catch (IllegalArgumentException e){
+		    String message = String.format(BadInstructionException.MSG_TEMPLATE, "I", getOriginalInstruction(splitLine),
+                    e.getMessage());
+		    throw new BadInstructionException(message);
+        }
 		
-		return opcode + rdCode + rsCode + immediate;
+
 	}
-	
-	static String parseImmediate(String N) {
+
+    private static String getOriginalInstruction(String[] splitLine) {
+        return String.join(", ", splitLine);
+    }
+
+    static String parseImmediate(String N) throws IllegalArgumentException{
 		int value;
 		
 		try {
 			value = Integer.valueOf(N);
 		} catch ( NumberFormatException nfe) {
-			return "BAD IMMEDIATE";
+			throw new IllegalArgumentException(String.format("Illegal immediate value: %d\n", N));
 		}
-		
-		
-		
+
 		return toBinary(value, 17);
 	}
 	
@@ -155,10 +191,12 @@ public class Parser {
 	 * @param instr
 	 * @return binary encoded R type instruction 
 	 */
-	static String parseRType(String[] splitLine, Instruction instr) {
+	static String parseRType(String[] splitLine, Instruction instr) throws BadInstructionException {
 
 		if(splitLine.length != 4) {
-			return "BAD R";
+            String message = String.format(BadInstructionException.MSG_TEMPLATE, "I", getOriginalInstruction(splitLine),
+                    String.format(BadInstructionException.ARG_MSG, 4, splitLine.length-1));
+            throw new BadInstructionException(message);
 		}
 		
 		String rdArg = splitLine[1];
@@ -167,17 +205,42 @@ public class Parser {
 		
 		// Get opcode
 		String opcode = instr.getOpcode();
-		String rdCode = toBinary(parseRegister(rdArg), 5);
-		String rsCode = toBinary(parseRegister(arg0), 5);
+		String rdCode;
+		String rsCode;
+		try {
+            rdCode = toBinary(parseRegister(rdArg), 5);
+            rsCode = toBinary(parseRegister(arg0), 5);
+        } catch(IllegalArgumentException e){
+            String message = String.format(BadInstructionException.MSG_TEMPLATE, "R", getOriginalInstruction(splitLine),
+                    e.getMessage());
+            throw new BadInstructionException(message);
+        }
 		String rtCode = "00000";
 		String shamt  = "00000";
 		String aluCode = instr.getALUopcode();
 		
 		boolean shiftInstr = instr == Instruction.SRA || instr == Instruction.SLL || instr == Instruction.SRL;
+		boolean isAddi = instr == Instruction.ADDI;
 		if (!shiftInstr) {
-			rtCode = toBinary(parseRegister(arg1), 5);
+		    try {
+                rtCode = toBinary(parseRegister(arg1), 5);
+            } catch (IllegalArgumentException e){
+		        if(isAddi)
+		            rtCode = toBinary(Integer.parseInt(arg1),5);
+		        else {
+                    String message = String.format(BadInstructionException.MSG_TEMPLATE, "R", getOriginalInstruction(splitLine),
+                            e.getMessage());
+                    throw new BadInstructionException(message);
+                }
+            }
 		} else {
-			shamt = toBinary(parseShamt(arg1), 5);
+		    try {
+                shamt = toBinary(parseShamt(arg1), 5);
+            } catch(IllegalArgumentException e){
+                String message = String.format(BadInstructionException.MSG_TEMPLATE, "R", getOriginalInstruction(splitLine),
+                        e.getMessage());
+                throw new BadInstructionException(message);
+            }
 		}
 		
 		return opcode + rdCode + rsCode + rtCode + shamt + aluCode + "00";
@@ -189,17 +252,17 @@ public class Parser {
 	 * @param shamt
 	 * @return
 	 */
-	static int parseShamt(String shamt) {
+	static int parseShamt(String shamt) throws IllegalArgumentException{
 		int value;
 		
 		try {
 			value = Integer.valueOf(shamt);
 		} catch (NumberFormatException nfe) {
-			return 0;
+			throw new IllegalArgumentException(String.format("Cannot parse %s to a numeric value\n", shamt));
 		}
 				
 		if (value < 0 || MAX_SHAMT < value ) {
-			return 0;
+			throw new IllegalArgumentException(String.format("Shamt of %d is not within allowed range\n", value));
 		}
 		
 		return value;
@@ -211,10 +274,10 @@ public class Parser {
 	 * @param regCode
 	 * @return
 	 */
-	static int parseRegister(String regCode) {
+	static int parseRegister(String regCode) throws IllegalArgumentException{
 
 		if (!regCode.contains("$")) {
-			return 0;
+			throw new IllegalArgumentException(String.format("RegCode of %s is invalid: must start with $\n", regCode));
 		}
 
 		// Replace snow flake registers with equivalent
@@ -230,13 +293,13 @@ public class Parser {
 		Integer regNum;
 
 		try {
-			regNum = new Integer(regCode);
+			regNum =  Integer.valueOf(regCode);
 		} catch (NumberFormatException nfe) {
-			return 0;
+			throw new IllegalArgumentException(String.format("RegCode of %s does not map to a 32-bit int value\n", regCode));
 		}
 
 		if (regNum < 0 || 32 <= regNum) {
-			return 0;
+			throw new IllegalArgumentException(String.format("Register value of %d does not map a register index between 0 and 31\n", regNum));
 		}
 
 		return regNum;
