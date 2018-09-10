@@ -1,14 +1,14 @@
 package assembulator;
 
-import java.util.*;
-import java.util.Scanner;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
+import gui.DialogFactory;
+import instructions.BadInstructionException;
 import parsing.Parser;
 
 import java.io.*;
+import java.util.*;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Simple parser that converts MIPS code into machine code using the ISA
@@ -18,7 +18,7 @@ import java.io.*;
  **/
 public class Assembulator implements Assembler{
 
-	private static final String ADDR_RADIX = "ADDRESS_RADIX = DEC;";
+    private static final String ADDR_RADIX = "ADDRESS_RADIX = DEC;";
 	private static final String DATA_RADIX = "DATA_RADIX = BIN;";
 
 	private static final String DEPTH_FORMAT = "DEPTH = %d;";
@@ -28,26 +28,46 @@ public class Assembulator implements Assembler{
 	private static final int WIDTH = 32;
 
 	private static final int NOP_PAD = 1;
+    public static final List<String> NOOP = List.of("noop", "noop", "noop", "noop");
 
-	private List<String> _RawAssembly;
-	private Map<String, Integer> _JumpTargets;
+    private List<String> rawAssembly = new ArrayList<>();
+	private Map<String, Integer> jumpTargets = new HashMap<>();
 	
-	private String _Filename;
+	private String filename;
 
+	public Assembulator(){};
+
+    /**
+     *  @Deprecated Each call to writeTo should specify the target to read from.
+    */
 	public Assembulator(String filename) {
-		_Filename = filename.substring(filename.lastIndexOf('/')+1, filename.length());
-		_RawAssembly = new ArrayList<>();
-		_JumpTargets = new HashMap<>();
-
+		this.filename = filename.substring(filename.lastIndexOf(File.separator)+1);
 		loadFile(filename);
 	}
 
 	@Override
-	public void writeTo(OutputStream os) {
-		List<String> filteredCode = filterCode(_RawAssembly);
+	public void writeTo(InputStream is, OutputStream os, boolean padding) throws BadInstructionException{
+        loadFile(is, padding);
+		List<String> filteredCode = filterCode(rawAssembly);
 		List<String> parsedCode = parseCode(filteredCode);		
 		writeCode(new PrintStream(os), filteredCode, parsedCode);
 	}
+
+	private void loadFile(InputStream is, boolean shouldPad){
+	   String line;
+	   BufferedReader r = new BufferedReader(new InputStreamReader(is));
+	   try{
+	       while((line = r.readLine()) != null){
+               rawAssembly.add(line);
+               if(shouldPad)
+                   rawAssembly.addAll(NOOP);
+           }
+           r.close();
+       } catch (IOException e){
+           DialogFactory.showError(e);
+       }
+
+    }
 	
 	private void loadFile(String filename) {
 		File file = new File(filename);		
@@ -56,7 +76,7 @@ public class Assembulator implements Assembler{
 		try {
 			codeScan = new Scanner(file);
 			while (codeScan.hasNextLine()) {
-				_RawAssembly.add(codeScan.nextLine());
+				rawAssembly.add(codeScan.nextLine());
 			}
 			codeScan.close();
 		} catch (FileNotFoundException e) {
@@ -88,9 +108,12 @@ public class Assembulator implements Assembler{
 			}
 			return s + " nop";
 		};
+
+		Function<String, String> removeSemicolons = s-> s.split(";")[0];
 		
 		List<String> filteredCode = rawAssembly.stream().map(addNopToEmptyTargetLines)
 														.filter(EmptyAndCommentOnlyLines)
+                                                        .map(removeSemicolons)
 														.collect(Collectors.toList());
 
 		trimTargetsFromCode(filteredCode);
@@ -109,7 +132,7 @@ public class Assembulator implements Assembler{
 				// trim target tag from command
 				// store address of target tag
 				code.set(i, command);
-				_JumpTargets.put(target, i);
+				jumpTargets.put(target, i);
 			}
 		}
 	}
@@ -121,13 +144,13 @@ public class Assembulator implements Assembler{
 	 * @param filteredCode
 	 * @return parsed code
 	 */
-	private List<String> parseCode(List<String> filteredCode) {
+	private List<String> parseCode(List<String> filteredCode) throws BadInstructionException {
 		Function<String, String> targetReplacer = s -> {
 			if (!s.matches("\\d+[a-zA-z_-]+")) {
 				return s;
 			}
 			String encoding = s.replaceAll("[a-zA-Z_-]", "");
-			int address = _JumpTargets.get(s.replaceAll("\\d", ""));
+			int address = jumpTargets.get(s.replaceAll("\\d", ""));
 			return encoding + Parser.toBinary(NOP_PAD*address, 27);
 		};
 
@@ -151,7 +174,7 @@ public class Assembulator implements Assembler{
 		// Print Header
 		String n = System.lineSeparator();
 		String FILE_FORMAT = "-- %s";
-		ps.printf(FILE_FORMAT + n, _Filename);
+		ps.printf(FILE_FORMAT + n, filename);
 		ps.printf(DEPTH_FORMAT + n, DEPTH);
 		ps.printf(WIDTH_FORMAT + n, WIDTH);
 		ps.println();
@@ -168,7 +191,7 @@ public class Assembulator implements Assembler{
 		ps.println("BEGIN");
 		
 		Map<Integer, String> reverseTargets = new HashMap<>();
-		_JumpTargets.forEach((s, i) -> reverseTargets.put(i, s));
+		jumpTargets.forEach((s, i) -> reverseTargets.put(i, s));
 
 		for (int i = 0; i < filtCode.size(); i++) {
 			String rawLine = filtCode.get(i);
